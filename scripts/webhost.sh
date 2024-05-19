@@ -1,0 +1,256 @@
+#!/bin/bash
+set -euo pipefail
+
+#
+# Colors
+#
+cyan="\033[36m"
+green="\033[32m"
+bright_red="\033[91m"
+reset="\033[0m"
+
+#
+# Usage
+#
+usage="> Usage:
+    webhost create_user {host}
+    webhost install_deps {host}
+    webhost install_certs {host}
+    webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-p| --public-sub-path] {/public/sub/path}) ([-c | --custom] {path/to/custom.conf})
+    webhost push {host} (content_dir)"
+
+if [[ "$#" -lt 2 ]]; then
+    echo -e "> ${bright_red}Error: too few arguments${reset}"
+    echo -e "$usage"
+    exit 1
+fi
+
+#
+# Variables
+#
+host=$2
+script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+#
+# Create remote `webhost` user to serve websites
+#
+if [[ $1 == "create_user" ]]; then
+    echo -e "> Creating webhost user for ${cyan}$host${reset} ..."
+
+    ssh root@$host "bash -s" -- < $script_dir/webhost_setup.sh
+
+    echo -e "\n> User creation successful ${green}✔${reset}, please login with ${cyan}ssh webhost@$host${reset} to set your password"
+#
+# Configure remote server with nginx, certbot, etc.
+#
+elif [[ $1 == "install_deps" ]]; then
+    echo -e "> Installing dependencies for ${cyan}$host${reset} ..."
+
+    ssh -t webhost@$host "
+        set -euo pipefail
+
+        echo -e '> Updating packages ...'
+        sudo apt-get update
+
+        echo -e '> Installing nginx ...'
+        sudo apt-get install -y nginx
+        sudo rm -rf /etc/nginx/sites-available /etc/nginx/sites-enabled /etc/nginx/modules-available /etc/nginx/modules-enabled
+
+        echo -e '> Allowing nginx traffic through firewall ...'
+        sudo ufw allow 'Nginx Full'
+        sudo ufw status
+
+        echo -e '> Installing LetsEncrypt certbot ...'
+        sudo snap install --classic certbot
+    "
+
+    echo -e "\n> Dependency installation successful ${green}✔${reset}"
+
+#
+# Request and install certificates for HTTPS
+#
+elif [[ $1 == "install_certs" ]]; then
+    echo -e "> Installing certificates for ${cyan}$host${reset} ..."
+
+    ssh -t webhost@$host "
+        set -euo pipefail
+        
+        echo -e '> Stopping nginx ...'
+        sudo systemctl stop nginx
+
+        echo -e '> Requesting certificates for ${cyan}$host${reset} ...'
+        sudo certbot certonly --nginx -d $host -d www.$host
+
+        echo -e '> Running certificate renewal dry run ...'
+        sudo certbot renew --dry-run
+
+        echo -e '> Restarting nginx ...'
+        sudo killall nginx
+        sudo systemctl restart nginx
+        sudo systemctl status --no-pager nginx
+    "
+
+    echo -e "\n> Certificate installation successful ${green}✔${reset}"
+
+#
+# Update nginx locally or remotely to serve website
+#
+elif [[ $1 == "update_nginx" ]]; then
+    # Set defaults
+    local=false
+    local_content_dir="$(pwd)/content"
+    public_sub_path=""
+    custom_conf=""
+
+    # Shift to option arguments and getopt
+    valid_args=$(shift; shift; getopt -o l:d:p:c: --long local:,local-content-dir:,public-sub-path:,custom: -- "$@")
+
+    update_nginx_usage="> Usage: webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-p| --public-sub-path] {/public/sub/path}) ([-c | --custom] {path/to/custom.conf})"
+
+    if [[ $? -ne 0 ]]; then
+        echo -e "> ${bright_red}Error: failed to read options${reset}"
+        echo -e "$update_nginx_usage"
+        exit 1
+    fi
+
+    echo -e "> Configuring ${cyan}$host.conf${reset} ..."
+
+    eval set -- "$valid_args"
+    while [ : ]; do
+      case "$1" in
+        -l | --local)
+            local=true
+            local_port=$2
+            echo -e "  > Local port: ${cyan}$local_port${reset}"
+            shift 2
+            ;;
+        -d | --local-content-dir)
+            if [[ $local != true ]]; then
+                echo -e "> ${bright_red}Error: (-d | --local-content-dir) option only applies when (-l | --local) option specified${reset}"
+                echo -e "$update_nginx_usage"
+                exit 1
+            fi
+
+            local_content_dir=$(echo "$2" | sed "s|\/*$||g")
+            echo -e "  > Local content dir: ${cyan}$local_content_dir${reset}"
+            shift 2
+            ;;
+        -p | --public-sub-path)
+            public_sub_path=$2
+            echo -e "  > Public sub path: ${cyan}$public_sub_path${reset}"
+            shift 2
+            ;;
+        -c | --custom)
+            custom_conf_file=$2
+            custom_conf=$(cat $custom_conf_file)
+            echo -e "  > Custom conf file: ${cyan}$custom_conf_file${reset}"
+            shift 2
+            ;;
+        --) 
+            shift
+            break
+            ;;
+      esac
+    done
+
+    config_dir=$script_dir/../config
+
+    if [[ $local == true ]]; then
+        server_conf=$(sed -e "s|{host}|$host|" -e "s|{port}|$local_port|" -e "s|{content_dir}|$local_content_dir|" $config_dir/server-local.conf)
+
+        custom_line=$(echo -e "$server_conf" | grep -n "{custom}" | cut -d ":" -f 1)
+        server_conf=$(echo -e "$server_conf" | head -n $(($custom_line-1)); echo -e "$custom_conf" | sed -e "s|^|    |"; echo -e "$server_conf" | tail -n +$(($custom_line+1));)
+
+        server_conf=$(echo -e "$server_conf" | sed -e "s|{public_sub_path}|$public_sub_path|g")
+
+        echo -e "> Configuring ${cyan}nginx${reset} ..."
+        nginx_conf=$(cat $config_dir/nginx-local.conf)
+
+        echo -e "> Writing files to ${cyan}/usr/local/etc/nginx${reset} ..."
+
+        echo -e "  > ${cyan}$host.conf${reset}"
+        echo -e "$server_conf" > /usr/local/etc/nginx/servers/$host.conf
+
+        echo -e "  > ${cyan}nginx.conf${reset}"
+        echo -e "$nginx_conf" > /usr/local/etc/nginx/nginx.conf
+
+        echo -e "> Restarting nginx ..."
+        brew services restart nginx
+
+        echo -e "\n> Status nginx ..."
+        brew services info nginx
+
+        echo -e "\n> Nginx configuration successful ${green}✔${reset}"
+    else
+        server_conf=$(sed -e "s|{host}|$host|" $config_dir/server.conf)
+        
+        custom_line=$(echo -e "$server_conf" | grep -n "{custom}" | cut -d ":" -f 1)
+        server_conf=$(echo -e "$server_conf" | head -n $(($custom_line-1)); echo -e "$custom_conf" | sed -e "s|^|    |"; echo -e "$server_conf" | tail -n +$(($custom_line+1));)
+
+        server_conf=$(echo -e "$server_conf" | sed -e "s|{public_sub_path}|$public_sub_path|g")
+
+        echo -e "> Copying config files to ${cyan}webhost@$host:/home/webhost/tmp${reset} ..."
+        ssh webhost@$host "mkdir -p tmp"
+
+        echo -e "  > ${cyan}$host.conf${reset}"
+        echo -e "$server_conf" | ssh webhost@$host -T "cat > /home/webhost/tmp/$host.conf"
+
+        echo -e "  > ${cyan}nginx.conf${reset}"
+        scp -q $config_dir/nginx.conf webhost@$host:/home/webhost/tmp
+
+        echo -e "> Moving config files to ${cyan}webhost@$host:/etc/nginx${reset} ..."
+        ssh -t webhost@$host "
+            set -euo pipefail
+
+            sudo echo -e '  > ${cyan}$host.conf${reset}'
+            sudo mv tmp/$host.conf /etc/nginx/conf.d/$host.conf
+
+            echo -e '  > ${cyan}nginx.conf${reset}'
+            sudo mv tmp/nginx.conf /etc/nginx/nginx.conf
+            
+            rm -r tmp
+
+            echo -e '> Restarting nginx ...'
+            sudo systemctl start nginx
+            sudo systemctl reload nginx
+
+            echo -e '> Status nginx ...'
+            sudo systemctl status --no-pager nginx
+        "
+
+        echo -e "\n> Nginx configuration successful ${green}✔${reset}"
+    fi
+
+#
+# Push content to remote server
+#
+elif [[ $1 == "push" ]]; then
+    if [[ "$#" -gt 2 ]]; then
+        content_dir=$(echo "$3" | sed "s|\/*$||g")
+    else
+        content_dir="content"
+    fi
+
+    echo -e "> Pushing ${cyan}$content_dir${reset} to ${cyan}webhost@$host:/home/webhost/hosts/$host/content${reset} ..."
+
+    rsync --verbose \
+        --recursive \
+        --times \
+        --delete-after \
+        --delete-excluded \
+        --compress \
+        --human-readable \
+        --exclude ".*" \
+        $content_dir/ \
+        webhost@$host:/home/webhost/hosts/$host/content
+
+    echo -e "\n> Push successful ${green}✔${reset}"
+
+#
+# Unrecognized command
+#
+else
+    echo -e "> ${bright_red}Error: unrecognized command $1{reset}"
+    echo -e "$usage"
+    exit 1
+fi
