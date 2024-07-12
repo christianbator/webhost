@@ -16,7 +16,7 @@ usage="> Usage:
     webhost create_user {host}
     webhost install_deps {host}
     webhost install_certs {host}
-    webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-p| --public-sub-path] {/public/sub/path}) ([-c | --custom] {path/to/custom.conf})
+    webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-p | --public-sub-path] {/public/sub/path}) ([-c | --custom] {path/to/custom.conf})
     webhost push {host} (content_dir)"
 
 if [[ "$#" -lt 2 ]]; then
