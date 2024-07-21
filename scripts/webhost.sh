@@ -16,8 +16,8 @@ usage="> Usage:
     webhost create_user {host}
     webhost install_deps {host}
     webhost install_certs {host}
-    webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-p | --path-prefix] {/path/prefix}) ([-a | --access-control] {path/to/access-control.conf})
-    webhost push {host} (content_dir)"
+    webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-a | --access-control] {path/to/access-control.conf})
+    webhost push {host} (/local/content/dir)"
 
 if [[ "$#" -lt 2 ]]; then
     echo -e "> ${bright_red}Error: too few arguments${reset}"
@@ -103,9 +103,9 @@ elif [[ $1 == "update_nginx" ]]; then
     access_control_conf="allow all;"
 
     # Shift to option arguments and getopt
-    valid_args=$(shift; shift; getopt -o l:d:p:a: --long local:,local-content-dir:,path-prefix:,access-control: -- "$@")
+    valid_args=$(shift; shift; getopt -o l:d:a: --long local:,local-content-dir:,access-control: -- "$@")
 
-    update_nginx_usage="> Usage: webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-p | --path-prefix] {/path/prefix}) ([-a | --access-control] {path/to/access-control.conf})"
+    update_nginx_usage="> Usage: webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-a | --access-control] {path/to/access-control.conf})"
 
     if [[ $? -ne 0 ]]; then
         echo -e "> ${bright_red}Error: failed to read options${reset}"
@@ -135,11 +135,6 @@ elif [[ $1 == "update_nginx" ]]; then
             echo -e "  > Local content dir: ${cyan}$local_content_dir${reset}"
             shift 2
             ;;
-        -p | --path-prefix)
-            path_prefix=$2
-            echo -e "  > Path prefix: ${cyan}$path_prefix${reset}"
-            shift 2
-            ;;
         -a | --access-control)
             access_control_conf_file=$2
             access_control_conf=$(cat $access_control_conf_file)
@@ -161,8 +156,6 @@ elif [[ $1 == "update_nginx" ]]; then
         access_control_line=$(echo -e "$server_conf" | grep -n "{access_control}" | cut -d ":" -f 1)
         server_conf=$(echo -e "$server_conf" | head -n $(($access_control_line-1)); echo -e "$access_control_conf" | sed -e "s|^|    |"; echo -e "$server_conf" | tail -n +$(($access_control_line+1));)
 
-        server_conf=$(echo -e "$server_conf" | sed -e "s|{path_prefix}|$path_prefix|g")
-
         if [[ -z "$path_prefix" ]]; then
             server_conf=$(echo -e "$server_conf" | sed -e "s|{adjusted_file_route}|\$uri|")
         else
@@ -173,7 +166,6 @@ elif [[ $1 == "update_nginx" ]]; then
         nginx_conf=$(cat $config_dir/nginx-local.conf)
 
         echo -e "> Writing files to ${cyan}/usr/local/etc/nginx${reset} ..."
-
         echo -e "  > ${cyan}$host.conf${reset}"
         echo -e "$server_conf" > /usr/local/etc/nginx/servers/$host.conf
 
@@ -192,8 +184,6 @@ elif [[ $1 == "update_nginx" ]]; then
         
         access_control_line=$(echo -e "$server_conf" | grep -n "{access_control}" | cut -d ":" -f 1)
         server_conf=$(echo -e "$server_conf" | head -n $(($access_control_line-1)); echo -e "$access_control_conf" | sed -e "s|^|    |"; echo -e "$server_conf" | tail -n +$(($access_control_line+1));)
-
-        server_conf=$(echo -e "$server_conf" | sed -e "s|{path_prefix}|$path_prefix|g")
 
         if [[ -z "$path_prefix" ]]; then
             server_conf=$(echo -e "$server_conf" | sed -e "s|{adjusted_file_route}|\$uri|")
