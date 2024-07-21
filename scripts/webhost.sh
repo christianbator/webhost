@@ -16,7 +16,7 @@ usage="> Usage:
     webhost create_user {host}
     webhost install_deps {host}
     webhost install_certs {host}
-    webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-p | --public-sub-path] {/public/sub/path}) ([-c | --custom] {path/to/custom.conf})
+    webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-p | --path-prefix] {/path/prefix}) ([-a | --access-control] {path/to/access-control.conf})
     webhost push {host} (content_dir)"
 
 if [[ "$#" -lt 2 ]]; then
@@ -99,13 +99,13 @@ elif [[ $1 == "update_nginx" ]]; then
     # Set defaults
     local=false
     local_content_dir="$(pwd)/content"
-    public_sub_path=""
-    custom_conf=""
+    path_prefix=""
+    access_control_conf="allow all;"
 
     # Shift to option arguments and getopt
-    valid_args=$(shift; shift; getopt -o l:d:p:c: --long local:,local-content-dir:,public-sub-path:,custom: -- "$@")
+    valid_args=$(shift; shift; getopt -o l:d:p:a: --long local:,local-content-dir:,path-prefix:,access-control: -- "$@")
 
-    update_nginx_usage="> Usage: webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-p| --public-sub-path] {/public/sub/path}) ([-c | --custom] {path/to/custom.conf})"
+    update_nginx_usage="> Usage: webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-p | --path-prefix] {/path/prefix}) ([-a | --access-control] {path/to/access-control.conf})"
 
     if [[ $? -ne 0 ]]; then
         echo -e "> ${bright_red}Error: failed to read options${reset}"
@@ -135,15 +135,15 @@ elif [[ $1 == "update_nginx" ]]; then
             echo -e "  > Local content dir: ${cyan}$local_content_dir${reset}"
             shift 2
             ;;
-        -p | --public-sub-path)
-            public_sub_path=$2
-            echo -e "  > Public sub path: ${cyan}$public_sub_path${reset}"
+        -p | --path-prefix)
+            path_prefix=$2
+            echo -e "  > Path prefix: ${cyan}$path_prefix${reset}"
             shift 2
             ;;
-        -c | --custom)
-            custom_conf_file=$2
-            custom_conf=$(cat $custom_conf_file)
-            echo -e "  > Custom conf file: ${cyan}$custom_conf_file${reset}"
+        -a | --access-control)
+            access_control_conf_file=$2
+            access_control_conf=$(cat $access_control_conf_file)
+            echo -e "  > Access control conf file: ${cyan}$access_control_conf_file${reset}"
             shift 2
             ;;
         --) 
@@ -158,10 +158,16 @@ elif [[ $1 == "update_nginx" ]]; then
     if [[ $local == true ]]; then
         server_conf=$(sed -e "s|{host}|$host|" -e "s|{port}|$local_port|" -e "s|{content_dir}|$local_content_dir|" $config_dir/server-local.conf)
 
-        custom_line=$(echo -e "$server_conf" | grep -n "{custom}" | cut -d ":" -f 1)
-        server_conf=$(echo -e "$server_conf" | head -n $(($custom_line-1)); echo -e "$custom_conf" | sed -e "s|^|    |"; echo -e "$server_conf" | tail -n +$(($custom_line+1));)
+        access_control_line=$(echo -e "$server_conf" | grep -n "{access_control}" | cut -d ":" -f 1)
+        server_conf=$(echo -e "$server_conf" | head -n $(($access_control_line-1)); echo -e "$access_control_conf" | sed -e "s|^|    |"; echo -e "$server_conf" | tail -n +$(($access_control_line+1));)
 
-        server_conf=$(echo -e "$server_conf" | sed -e "s|{public_sub_path}|$public_sub_path|g")
+        server_conf=$(echo -e "$server_conf" | sed -e "s|{path_prefix}|$path_prefix|g")
+
+        if [[ -z "$path_prefix" ]]; then
+            server_conf=$(echo -e "$server_conf" | sed -e "s|{adjusted_file_route}|\$uri|")
+        else
+            server_conf=$(echo -e "$server_conf" | sed -e "s|{adjusted_file_route}|\$uri $path_prefix/\$uri|")
+        fi
 
         echo -e "> Configuring ${cyan}nginx${reset} ..."
         nginx_conf=$(cat $config_dir/nginx-local.conf)
@@ -184,10 +190,16 @@ elif [[ $1 == "update_nginx" ]]; then
     else
         server_conf=$(sed -e "s|{host}|$host|" $config_dir/server.conf)
         
-        custom_line=$(echo -e "$server_conf" | grep -n "{custom}" | cut -d ":" -f 1)
-        server_conf=$(echo -e "$server_conf" | head -n $(($custom_line-1)); echo -e "$custom_conf" | sed -e "s|^|    |"; echo -e "$server_conf" | tail -n +$(($custom_line+1));)
+        access_control_line=$(echo -e "$server_conf" | grep -n "{access_control}" | cut -d ":" -f 1)
+        server_conf=$(echo -e "$server_conf" | head -n $(($access_control_line-1)); echo -e "$access_control_conf" | sed -e "s|^|    |"; echo -e "$server_conf" | tail -n +$(($access_control_line+1));)
 
-        server_conf=$(echo -e "$server_conf" | sed -e "s|{public_sub_path}|$public_sub_path|g")
+        server_conf=$(echo -e "$server_conf" | sed -e "s|{path_prefix}|$path_prefix|g")
+
+        if [[ -z "$path_prefix" ]]; then
+            server_conf=$(echo -e "$server_conf" | sed -e "s|{adjusted_file_route}|\$uri|")
+        else
+            server_conf=$(echo -e "$server_conf" | sed -e "s|{adjusted_file_route}|\$uri $path_prefix/\$uri|")
+        fi
 
         echo -e "> Copying config files to ${cyan}webhost@$host:/home/webhost/tmp${reset} ..."
         ssh webhost@$host "mkdir -p tmp"
