@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 set -euo pipefail
 
 #
@@ -13,26 +13,39 @@ reset="\033[0m"
 # Usage
 #
 usage="> Usage:
+    ${cyan}# Create remote \`webhost\` user to serve websites${reset}
     webhost create_user {host}
+
+    ${cyan}# Configure remote server with nginx, ufw, and certbot${reset}
     webhost install_deps {host}
+
+    ${cyan}# Request and install certificates for HTTPS${reset}
     webhost install_certs {host}
-    webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-a | --access-control] {path/to/access-control.conf})
-    webhost push {host} (/local/content/dir)"
+
+    ${cyan}# Update nginx locally or remotely to serve website${reset}
+    webhost update_nginx {host} \\
+        [(-l | --local) {port}] \\
+        [(-d | --local-content-dir) {/local/content/dir}] \\
+        [(-a | --access-control) {path/to/access-control.conf}]
+
+    ${cyan}# Push website content to remote server${reset}
+    webhost push {host} [(-d | --local-content-dir) {/local/content/dir}]"
+
+#
+# Arguments
+#
+script_dir=${0:a:h}
 
 if [[ "$#" -lt 1 ]]; then
     echo -e "$usage"
     exit 1
 elif [[ "$#" -lt 2 ]]; then
-    echo -e "> ${bright_red}Error: too few arguments${reset}"
-    echo -e "$usage"
+    echo -e "> ${bright_red}Error${reset}: too few arguments"
+    echo -e "\n$usage"
     exit 1
 fi
 
-#
-# Variables
-#
 host=$2
-script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 #
 # Create remote `webhost` user to serve websites
@@ -43,8 +56,9 @@ if [[ $1 == "create_user" ]]; then
     ssh root@$host "bash -s" -- < $script_dir/webhost_setup.sh
 
     echo -e "\n> User creation successful ${green}✔${reset}, please login with ${cyan}ssh webhost@$host${reset} to set your password"
+
 #
-# Configure remote server with nginx, certbot, etc.
+# Configure remote server with nginx, ufw, and certbot
 #
 elif [[ $1 == "install_deps" ]]; then
     echo -e "> Installing dependencies for ${cyan}$host${reset} ..."
@@ -102,17 +116,19 @@ elif [[ $1 == "update_nginx" ]]; then
     path_prefix=""
     access_control_conf="allow all;"
 
-    # Shift to option arguments and getopt
+    # Shift to option arguments and invoke getopt
     valid_args=$(shift; shift; getopt -o l:d:a: --long local:,local-content-dir:,access-control: -- "$@")
 
-    update_nginx_usage="> Usage: webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-a | --access-control] {path/to/access-control.conf})"
+    # Parse args and show usage if necessary
+    update_nginx_usage="> Usage: webhost update_nginx {host} [(-l | --local) {port}] [(-d | --local-content-dir) {/local/content/dir}] [(-a | --access-control) {path/to/access-control.conf}]"
 
     if [[ $? -ne 0 ]]; then
-        echo -e "> ${bright_red}Error: failed to read options${reset}"
-        echo -e "$update_nginx_usage"
+        echo -e "> ${bright_red}Error${reset}: invalid options"
+        echo -e "\n$update_nginx_usage"
         exit 1
     fi
 
+    # Configure
     echo -e "> Configuring ${cyan}$host.conf${reset} ..."
 
     eval set -- "$valid_args"
@@ -126,8 +142,8 @@ elif [[ $1 == "update_nginx" ]]; then
             ;;
         -d | --local-content-dir)
             if [[ $local != true ]]; then
-                echo -e "> ${bright_red}Error: (-d | --local-content-dir) option only applies when (-l | --local) option specified${reset}"
-                echo -e "$update_nginx_usage"
+                echo -e "> ${bright_red}Error${reset}: must specify [(-l | --local) {port}] option before [(-d | --local-content-dir) {/local/content/dir}]"
+                echo -e "\n$update_nginx_usage"
                 exit 1
             fi
 
@@ -224,16 +240,42 @@ elif [[ $1 == "update_nginx" ]]; then
     fi
 
 #
-# Push content to remote server
+# Push website content to remote server
 #
 elif [[ $1 == "push" ]]; then
-    if [[ "$#" -gt 2 ]]; then
-        content_dir=$(echo "$3" | sed "s|\/*$||g")
-    else
-        content_dir="content"
+    # Set defaults
+    local_content_dir="content"
+
+    # Shift to option arguments and invoke getopt
+    valid_args=$(shift; shift; getopt -o d: --long local-content-dir: -- "$@")
+
+    # Parse args and show usage if necessary
+    push_usage="> Usage: webhost push {host} [(-d | --local-content-dir) {/local/content/dir}]"
+
+    if [[ $? -ne 0 ]]; then
+        echo -e "> ${bright_red}Error${reset}: invalid options"
+        echo -e "\n$push_usage"
+        exit 1
     fi
 
-    echo -e "> Pushing ${cyan}$content_dir${reset} to ${cyan}webhost@$host:/home/webhost/$host/content${reset} ..."
+    eval set -- "$valid_args"
+    while [ : ]; do
+      case "$1" in
+        -d | --local-content-dir)
+            local_content_dir=$(echo "$2" | sed "s|\/*$||g")
+            shift 2
+            ;;
+        --) 
+            shift
+            break
+            ;;
+      esac
+    done
+
+    # Remove trailing slashes
+    local_content_dir=$(echo "$local_content_dir" | sed "s|\/*$||")
+
+    echo -e "> Pushing ${cyan}$local_content_dir${reset} to ${cyan}webhost@$host:/home/webhost/$host/content${reset} ..."
 
     rsync --verbose \
         --recursive \
@@ -244,7 +286,7 @@ elif [[ $1 == "push" ]]; then
         --compress \
         --human-readable \
         --exclude ".*" \
-        $content_dir/ \
+        $local_content_dir/ \
         webhost@$host:/home/webhost/$host/content
 
     echo -e "\n> Push successful ${green}✔${reset}"
@@ -253,7 +295,7 @@ elif [[ $1 == "push" ]]; then
 # Unrecognized command
 #
 else
-    echo -e "> ${bright_red}Error: unrecognized command $1{reset}"
-    echo -e "$usage"
+    echo -e "> ${bright_red}Error${reset}: unrecognized command $1"
+    echo -e "\n$usage"
     exit 1
 fi
