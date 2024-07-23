@@ -19,7 +19,10 @@ usage="> Usage:
     webhost update_nginx {host} ([-l | --local] {port}) ([-d | --local-content-dir] {/local/content/dir}) ([-a | --access-control] {path/to/access-control.conf})
     webhost push {host} (/local/content/dir)"
 
-if [[ "$#" -lt 2 ]]; then
+if [[ "$#" -lt 1 ]]; then
+    echo -e "$usage"
+    exit 1
+elif [[ "$#" -lt 2 ]]; then
     echo -e "> ${bright_red}Error: too few arguments${reset}"
     echo -e "$usage"
     exit 1
@@ -80,9 +83,6 @@ elif [[ $1 == "install_certs" ]]; then
 
         echo -e '> Requesting certificates for ${cyan}$host${reset} ...'
         sudo certbot certonly --nginx -d $host -d www.$host
-
-        echo -e '> Running certificate renewal dry run ...'
-        sudo certbot renew --dry-run
 
         echo -e '> Restarting nginx ...'
         sudo killall nginx
@@ -233,10 +233,11 @@ elif [[ $1 == "push" ]]; then
         content_dir="content"
     fi
 
-    echo -e "> Pushing ${cyan}$content_dir${reset} to ${cyan}webhost@$host:/home/webhost/hosts/$host/content${reset} ..."
+    echo -e "> Pushing ${cyan}$content_dir${reset} to ${cyan}webhost@$host:/home/webhost/$host/content${reset} ..."
 
     rsync --verbose \
         --recursive \
+        --mkpath \
         --times \
         --delete-after \
         --delete-excluded \
@@ -244,7 +245,7 @@ elif [[ $1 == "push" ]]; then
         --human-readable \
         --exclude ".*" \
         $content_dir/ \
-        webhost@$host:/home/webhost/hosts/$host/content
+        webhost@$host:/home/webhost/$host/content
 
     echo -e "\n> Push successful ${green}✔${reset}"
 
