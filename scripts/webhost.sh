@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 set -euo pipefail
 
 #
@@ -34,7 +34,7 @@ usage="> Usage:
 #
 # Arguments
 #
-script_dir=${0:a:h}
+scripts_dir=${0:a:h}
 
 if [[ "$#" -lt 1 ]]; then
     echo -e "$usage"
@@ -53,7 +53,7 @@ host=$2
 if [[ $1 == "create_user" ]]; then
     echo -e "> Creating webhost user for ${cyan}$host${reset} ..."
 
-    ssh root@$host "bash -s" -- < $script_dir/webhost_setup.sh
+    ssh root@$host "bash -s" -- < $scripts_dir/webhost_setup.sh
 
     echo -e "\n> User creation successful ${green}✔${reset}, please login with ${cyan}ssh webhost@$host${reset} to set your password"
 
@@ -164,7 +164,7 @@ elif [[ $1 == "update_nginx" ]]; then
       esac
     done
 
-    config_dir=$script_dir/../config
+    config_dir=$scripts_dir/../config
 
     if [[ $local == true ]]; then
         server_conf=$(sed -e "s|{host}|$host|" -e "s|{port}|$local_port|" -e "s|{content_dir}|$local_content_dir|" $config_dir/server-local.conf)
