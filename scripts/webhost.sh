@@ -183,7 +183,9 @@ elif [[ $1 == "update_nginx" ]]; then
 
         echo -e "> Writing files to ${cyan}/usr/local/etc/nginx${reset} ..."
         echo -e "  > ${cyan}$host.conf${reset}"
-        echo -e "$server_conf" > /usr/local/etc/nginx/servers/$host.conf
+
+        mkdir -p /usr/local/etc/nginx/conf.d
+        echo -e "$server_conf" > /usr/local/etc/nginx/conf.d/$host.conf
 
         echo -e "  > ${cyan}nginx.conf${reset}"
         echo -e "$nginx_conf" > /usr/local/etc/nginx/nginx.conf
