@@ -1,0 +1,8 @@
+#
+# .gitignore
+# Webhost
+#
+# Created by Christian Bator 12/17/2024.
+#
+
+*.sublime-project

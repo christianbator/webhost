@@ -1,53 +1,50 @@
-Website
-=====
+# Webhost
+A simple way to host static websites.
 
-A simple way to host multiple static websites on a single server.
-
-
-Getting Started
----------------
-
+## Getting Started
 Follow along with the instructions below to get started.
 
-### Prerequisites
+### Dependencies
+1. [zsh](https://github.com/ohmyzsh/ohmyzsh/wiki/Installing-ZSH)
+1. [gnu-getopt](https://formulae.brew.sh/formula/gnu-getopt)
+1. [rsync](https://formulae.brew.sh/formula/rsync)
+1. [nginx](https://formulae.brew.sh/formula/nginx) (optional: for viewing the website locally)
 
+### Prerequisites
 1. Ubuntu server with ssh access to `root`
   - You can set one up through [DigitalOcean](https://www.digitalocean.com/docs/droplets/how-to/create/)
-2. Domain name (e.g. google.com)
+2. Domain name (e.g. github.com)
   - You can buy one through [Namecheap](https://www.namecheap.com) 
 3. DNS configuration to point the domain to the server
   - You can follow [these instructions](https://www.digitalocean.com/community/tutorials/how-to-point-to-digitalocean-nameservers-from-common-domain-registrars) to configure DNS for DigitalOcean
 
 Verify that your domain points to your server's IP with:
 ```
-[local]$ nslookup {host}
+nslookup {host}
 ```
 
 ### Setup
-
 Set up your server with the following commands.
 
 **1. Clone the repo**
-
 ```
-git clone git@github.com:christianbator/Webhost.git
-cd Webhost
+git clone git@github.com:christianbator/webhost.git
+cd webhost
 ```
 
 **2. Add Webhost utilities to PATH**
-In `.bashrc` or `.zshrc`:
+In `.zshrc`:
 ```
-export PATH="$HOME/path/to/Webhost/scripts:$PATH"
+export PATH="$HOME/path/to/webhost/bin:$PATH"
 ```
 
 **3. Configure the server**
-
 Create a user named `webhost` with `sudo` privileges:
 ```
 webhost create_user {host}
 ```
 
-- Everything from now on will be run from the `webhost` user. You're forced to create a new password, do so when prompted after running:
+- Everything from now on will be run from the `webhost` user. You're forced to create a new password - do so when prompted after running:
 ```
 ssh webhost@{host}
 ```
@@ -59,7 +56,6 @@ webhost install_deps {host}
 ```
 
 **4. Encrypt the traffic**
-
 ```
 webhost install_certs {host}
 ```
@@ -69,7 +65,6 @@ webhost install_certs {host}
 3) Follow along with any other prompts
 
 **5. Enabling website**
-
 Update the nginx config either locally or remotely:
 ```
 webhost update_nginx {host} (-l | --local) {port} (-p | --protected)
@@ -79,8 +74,7 @@ Note: for local config, always run the command from the directory above the `con
 
 If protected (with args (-p | --protected)), there is a `content/protected` dir to serve files.
 
-### Setup Notes
-
+### Notes
 - Website
   - The website is served as static content from nginx out of the
     `/home/webhost/{host}` directory
@@ -90,10 +84,8 @@ If protected (with args (-p | --protected)), there is a `content/protected` dir 
   - All www urls are redirected to non www
   - All trailing slash urls are rewritten to non trailing slash urls
 
-Usage
------
-
-There are a couple tools to help manage the site.
+## Usage
+There are a couple tools to help manage your site.
 
 ### Pushing Content
 ```
