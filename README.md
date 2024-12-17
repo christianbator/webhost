@@ -9,7 +9,7 @@ Install these with either apt or Homebrew if they aren't installed:
 1. [zsh](https://github.com/ohmyzsh/ohmyzsh/wiki/Installing-ZSH)
 1. [gnu-getopt](https://formulae.brew.sh/formula/gnu-getopt)
 1. [rsync](https://formulae.brew.sh/formula/rsync)
-1. [Optional] [nginx](https://formulae.brew.sh/formula/nginx) (for viewing the website locally)
+1. [nginx](https://formulae.brew.sh/formula/nginx)[Optional] (for viewing the website locally)
   
 ### Prerequisites
 1. Ubuntu server with ssh access to `root` (you can set one up through [DigitalOcean](https://www.digitalocean.com/docs/droplets/how-to/create/))
@@ -68,9 +68,9 @@ Update the nginx config remotely:
 webhost update_nginx {host} [(-a | --access-control) {path/to/access-control.conf}]
 ```
 Options:
-- [Optional] `-a | --access-control`: Specify an access control configuration (see the example access control file below)  
+- `-a | --access-control` [Optional]: Specify an access control configuration (see the example access control file below)  
   
-**6a. [Optional] Update the nginx config locally**  
+**6a. Update the nginx config locally [Optional]**  
 ```
 webhost update_nginx {host} \
     (-l | --local) {port} [(-d | --local-content-dir) {/local/content/dir}] \
@@ -79,10 +79,10 @@ webhost update_nginx {host} \
   
 Options:
 - `-l | --local`: Required, specify the local port after this (e.g. `--local 8000`)
-- [Optional] `-d | --local-content-dir`: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to serve the website from.
-- [Optional] `-a | --access-control`: Specify an access control configuration (see the example access control file below)  
+- `-d | --local-content-dir` [Optional]: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to serve the website from.
+- `-a | --access-control` [Optional]: Specify an access control configuration (see the example access control file below)  
   
-**6b. [Optional] Specify an `access-control.conf` file**  
+**6b. Specify an `access-control.conf` file [Optional]**  
 You can specify an access control file to gate access to the website using standard nginx directives:
 ```nginx
   # Satisfy all directives for access
@@ -124,7 +124,7 @@ webhost push {host} [(-d | --local-content-dir) {/local/content/dir}]
 ```  
   
 Options:
-- [Optional] `-d | --local-content-dir`: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to push to the server.  
+- `-d | --local-content-dir` [Optional]: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to push to the server.  
   
 **Content Notes**  
 Fill in the `content/icons` directory with the following files
