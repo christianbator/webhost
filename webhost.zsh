@@ -71,7 +71,6 @@ elif [[ $1 == "install_deps" ]]; then
 
         echo -e '> Installing nginx ...'
         sudo apt-get install -y nginx
-        sudo unlink /etc/nginx/sites-enabled/default
         
         echo -e '> Allowing nginx traffic through firewall ...'
         sudo ufw allow 'Nginx Full'
