@@ -71,7 +71,6 @@ elif [[ $1 == "install_deps" ]]; then
 
         echo -e '> Installing nginx ...'
         sudo apt-get install -y nginx
-        sudo rm -rf /etc/nginx/sites-available /etc/nginx/sites-enabled /etc/nginx/modules-available /etc/nginx/modules-enabled
 
         echo -e '> Allowing nginx traffic through firewall ...'
         sudo ufw allow 'Nginx Full'
@@ -222,7 +221,8 @@ elif [[ $1 == "update_nginx" ]]; then
             set -euo pipefail
 
             sudo echo -e '  > ${cyan}$host.conf${reset}'
-            sudo mv tmp/$host.conf /etc/nginx/conf.d/$host.conf
+            sudo mv tmp/$host.conf /etc/nginx/sites-available/$host.conf
+            sudo ln -sf /etc/nginx/sites-available/$host.conf /etc/nginx/sites-enabled/$host.conf
 
             echo -e '  > ${cyan}nginx.conf${reset}'
             sudo mv tmp/nginx.conf /etc/nginx/nginx.conf
