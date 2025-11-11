@@ -1,4 +1,11 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
+#
+# create-user.sh
+# webhost
+#
+# Created by Christian Bator on 11/11/2025
+#
+
 set -euo pipefail
 
 # Name of the user to create and grant sudo privileges

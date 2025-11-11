@@ -5,11 +5,8 @@ A simple way to host static websites.
 Follow along with the instructions below to get started.
 
 ### Dependencies
-Install these with either apt or Homebrew if they aren't installed:
-1. [zsh](https://github.com/ohmyzsh/ohmyzsh/wiki/Installing-ZSH)
-1. [gnu-getopt](https://formulae.brew.sh/formula/gnu-getopt)
 1. [rsync](https://formulae.brew.sh/formula/rsync)
-1. [nginx](https://formulae.brew.sh/formula/nginx)[Optional] (for viewing the website locally)
+1. [nginx](https://formulae.brew.sh/formula/nginx) [optional, for viewing the website locally]
   
 ### Prerequisites
 1. Ubuntu server with ssh access to `root` (you can set one up through [DigitalOcean](https://www.digitalocean.com))
@@ -18,7 +15,7 @@ Install these with either apt or Homebrew if they aren't installed:
   
 Verify that your domain points to your server's IP with:
 ```
-nslookup {host}
+nslookup <host>
 ```
   
 ### Setup
@@ -31,73 +28,53 @@ cd webhost
 ```  
   
 **2. Add the webhost executable to your PATH**
-In `.zshrc`:
 ```
-export PATH="$HOME/path/to/webhost/bin:$PATH"
+export PATH="$PATH:$HOME/path/to/webhost/bin"
 ```  
   
 **3. Configure the server**  
-Create a user named `webhost` with `sudo` privileges:
+Create a user on the server named `webhost` with `sudo` privileges:
 ```
-webhost create_user {host}
+webhost create-user <host>
 ```  
   
-Everything from now on will be run from the `webhost` user. You're forced to create a new password - do so when prompted after running:
+Everything on the server will now be run from the `webhost` user. You're forced to create a new password - do so when prompted after running:
 ```
-ssh webhost@{host}
+ssh webhost@<host>
 ```  
   
-**4. Install [nginx](https://www.nginx.com/resources/wiki/) and
-  [certbot](https://letsencrypt.org), then set up a firewall**
+**4. Install [nginx](https://www.nginx.com/resources/wiki/) and [certbot](https://letsencrypt.org), then set up a firewall**
 ```
-webhost install_deps {host}
+webhost install-deps <host>
 ```  
   
 **5. Encrypt the traffic**
 ```
-webhost install_certs {host}
+webhost install-certs <host>
 ```  
   
-1. Enter the webhost password when prompted
+1. Enter the `webhost` password when prompted
 1. For verification, select option 1: "Run an HTTP server locally"
 1. Follow along with any other prompts  
   
 **6. Enable the website**  
 Update the nginx config remotely:
 ```
-webhost update_nginx {host} [(-a | --access-control) {path/to/access-control.conf}]
+webhost update-nginx <host>
 ```
-Options:
-- `-a | --access-control` [Optional]: Specify an access control configuration (see the example access control file below)  
   
-**6a. Update the nginx config locally [Optional]**  
+**6a. Update the nginx config locally [optional]**  
 ```
-webhost update_nginx {host} \
-    (-l | --local) {port} [(-d | --local-content-dir) {/local/content/dir}] \
-    [(-a | --access-control) {path/to/access-control.conf}]
+webhost update-nginx <host> (-l | --local) <port> [(-d | --directory) </local/content/dir>]
 ```  
   
 Options:
 - `-l | --local`: Required, specify the local port after this (e.g. `--local 8000`)
-- `-d | --local-content-dir` [Optional]: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to serve the website from.
-- `-a | --access-control` [Optional]: Specify an access control configuration (see the example access control file below)  
-  
-**6b. Specify an `access-control.conf` file [Optional]**  
-You can specify an access control file to gate access to the website using standard nginx directives:
-```nginx
-  # Satisfy all directives for access
-  satisfy all;
-
-  # Allow a block of IPs (e.g. Wireguard VPN)
-  allow 10.8.0.0/24;
-
-  # Deny all other traffic
-  deny all;
-```  
+- `-d | --directory` [optional]: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to serve the website from.
   
 **Setup Notes**
 - The remote website is served as static content from nginx out of the
-    `/home/webhost/{host}` directory
+    `/home/webhost/<host>` directory
 - Routing
   - All HTTP traffic is redirected to HTTPS
   - All www urls are redirected to non www
@@ -106,7 +83,7 @@ You can specify an access control file to gate access to the website using stand
 ## Usage
 Invoke `webhost` with no arguments to view the usage.  
 
-1. Create your website's `content/` directory in the following structure:
+1. Create your website's `content` directory in the following structure:
 ```
 content/        # Required
   sitemap.txt
@@ -120,19 +97,17 @@ content/        # Required
   
 2. Push the website!
 ```
-webhost push {host} [(-d | --local-content-dir) {/local/content/dir}]
+webhost push <host> [(-d | --local-content-dir) </local/content/dir>]
 ```  
   
 Options:
-- `-d | --local-content-dir` [Optional]: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to push to the server.  
+- `-d | --local-content-dir` [optional]: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to push to the server.  
   
 **Content Notes**  
-Fill in the `content/icons` directory with the following files
-so your site will automatically serve favicons and social media images:
+Fill in the `content/icons` directory with the following files so your site will automatically serve favicons and social media images:
 ```
 favicon-0.png (64x64)
 high-res-0.png (900x900)
-apple-touch-icon-0.png (180x180)
 ```  
   
 If you ever need to update them, bump the number to 1, 2, 3, etc.  
