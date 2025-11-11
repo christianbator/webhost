@@ -69,8 +69,8 @@ webhost update-nginx <host> (-l | --local) <port> [(-d | --directory) </local/co
 ```  
   
 Options:
-- `-l | --local`: Required, specify the local port after this (e.g. `--local 8000`)
-- `-d | --directory` [optional]: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to serve the website from.
+- `-l | --local`: Required. Specify the local port after this (e.g. `--local 8000`)
+- `-d | --directory`: Optional. If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to serve the website from.
   
 **Setup Notes**
 - The remote website is served as static content from nginx out of the
