@@ -85,23 +85,24 @@ Invoke `webhost` with no arguments to view the usage.
 
 1. Create your website's `content` directory in the following structure:
 ```
-content/        # Required
+content/
+  pages/
+    index.html
+  styles/
+    main.css
+  icons/
+    favicon-0.png
   sitemap.txt
   robots.txt
-  pages/        # Required
-    styles/
-    fonts/
-  icons/
-  images/
 ```  
   
 2. Push the website!
 ```
-webhost push <host> [(-d | --local-content-dir) </local/content/dir>]
+webhost push <host> [(-d | --directory) </local/content/dir>]
 ```  
   
 Options:
-- `-d | --local-content-dir` [optional]: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to push to the server.  
+- `-d | --directory` [optional]: If calling `webhost` from the parent of your website's `content` dir, ignore this. Otherwise, specify the local `content` dir to push to the server.  
   
 **Content Notes**  
 Fill in the `content/icons` directory with the following files so your site will automatically serve favicons and social media images:
