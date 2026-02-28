@@ -10,7 +10,7 @@ Follow along with the instructions below to get started.
   
 ### Prerequisites
 1. Ubuntu server with ssh access to `root` (you can set one up through [DigitalOcean](https://www.digitalocean.com))
-1. Domain name (e.g. github.com) (you can buy one through [Namecheap](https://www.namecheap.com) )
+1. Domain name (e.g. github.com) (you can buy one through [Namecheap](https://www.namecheap.com))
 1. DNS configuration to point the domain to the server (you can follow [these instructions](https://www.digitalocean.com/community/tutorials/how-to-point-to-digitalocean-nameservers-from-common-domain-registrars) to configure DNS for DigitalOcean)  
   
 Verify that your domain points to your server's IP with:

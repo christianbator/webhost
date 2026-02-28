@@ -40,7 +40,7 @@ usage="Usage:
 #
 # Arguments
 #
-scripts_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+bin_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 if [[ "$#" -lt 1 ]]; then
     echo -e "$usage"
@@ -60,7 +60,7 @@ host=$2
 if [[ $1 == "create-user" ]]; then
     echo -e "Creating webhost user for ${cyan}$host${reset} ..."
 
-    ssh root@$host "bash -s" -- < $scripts_dir/create-user.sh
+    ssh root@$host "bash -s" -- < $bin_dir/../scripts/create-user.sh
 
     echo -e "\nUser creation successful ${green}✔${reset}, please login with ${cyan}ssh webhost@$host${reset} to set your password"
 
@@ -184,7 +184,7 @@ elif [[ $command == "update-nginx" ]]; then
     done
 
     # Configure
-    config_dir=$scripts_dir/../config
+    config_dir=$bin_dir/../config
 
     if [[ $local == true ]]; then
         server_conf=$(sed -e "s|{host}|$host|" -e "s|{port}|$local_port|" -e "s|{content_dir}|$content_dir|" $config_dir/server-local.conf)
