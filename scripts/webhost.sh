@@ -31,7 +31,7 @@ usage="Usage:
     webhost install-certs <host>
 
     # Update nginx locally or remotely to serve website
-    webhost update-nginx <host> [(-l | --local) <port>] [(-d | --directory) </local/content/dir>]
+    webhost update-nginx <host> [(-l | --local) <port>] [(-d | --directory) </local/content/dir>] [(-i | --include) <file>]
 
     # Push website content to remote server
     webhost push <host> [(-d | --directory) </local/content/dir>]
@@ -122,9 +122,10 @@ elif [[ $command == "update-nginx" ]]; then
     local=false
     local_port=""
     content_dir="$(pwd)/content"
+    include_file=""
 
     # Parse args and show usage if necessary
-    update_nginx_usage="Usage: webhost update-nginx <host> [(-l | --local) <port>] [(-d | --directory) </local/content/dir>]"
+    update_nginx_usage="Usage: webhost update-nginx <host> [(-l | --local) <port>] [(-d | --directory) </local/content/dir>] [(-i | --include) <file>]"
 
     shift; shift
     if [[ $? -ne 0 ]]; then
@@ -159,10 +160,27 @@ elif [[ $command == "update-nginx" ]]; then
                     echo -e "\n$update_nginx_usage"
                     exit 1
                 fi
-                
+
                 content_dir="${2%/}"
-                
+
                 echo -e "  Local content dir: ${cyan}$content_dir${reset}"
+                shift 2
+                ;;
+            -i|--include)
+                if [ $# -lt 2 ] || [[ "$2" == -* ]]; then
+                    echo -e "${bright_red}Error${reset}: invalid options"
+                    echo -e "\n$update_nginx_usage"
+                    exit 1
+                fi
+
+                include_file="$2"
+
+                if [[ ! -f "$include_file" ]]; then
+                    echo -e "${bright_red}Error${reset}: include file not found: $include_file"
+                    exit 1
+                fi
+
+                echo -e "  Include: ${cyan}$include_file${reset}"
                 shift 2
                 ;;
             --) shift; break ;;
@@ -188,6 +206,14 @@ elif [[ $command == "update-nginx" ]]; then
 
     if [[ $local == true ]]; then
         server_conf=$(sed -e "s|{host}|$host|" -e "s|{port}|$local_port|" -e "s|{content_dir}|$content_dir|" $config_dir/server-local.conf)
+
+        # Substitute {custom} line with include file contents (or remove it)
+        custom_line=$(echo -e "$server_conf" | grep -n "{custom}" | cut -d ":" -f 1)
+        if [[ -n "$include_file" ]]; then
+            server_conf=$(echo -e "$server_conf" | head -n $(($custom_line-1)); cat "$include_file" | sed -e "s|^|    |"; echo -e "$server_conf" | tail -n +$(($custom_line+1));)
+        else
+            server_conf=$(echo -e "$server_conf" | head -n $(($custom_line-1)); echo -e "$server_conf" | tail -n +$(($custom_line+1));)
+        fi
 
         echo -e "Configuring ${cyan}nginx${reset} ..."
 
@@ -239,6 +265,14 @@ elif [[ $command == "update-nginx" ]]; then
         echo -e "\nNginx configuration successful ${green}✔${reset}"
     else
         server_conf=$(sed -e "s|{host}|$host|" $config_dir/server.conf)
+
+        # Substitute {custom} line with include file contents (or remove it)
+        custom_line=$(echo -e "$server_conf" | grep -n "{custom}" | cut -d ":" -f 1)
+        if [[ -n "$include_file" ]]; then
+            server_conf=$(echo -e "$server_conf" | head -n $(($custom_line-1)); cat "$include_file" | sed -e "s|^|    |"; echo -e "$server_conf" | tail -n +$(($custom_line+1));)
+        else
+            server_conf=$(echo -e "$server_conf" | head -n $(($custom_line-1)); echo -e "$server_conf" | tail -n +$(($custom_line+1));)
+        fi
 
         echo -e "Copying config files to ${cyan}webhost@$host:/home/webhost/tmp${reset} ..."
         ssh webhost@$host "mkdir -p tmp"
